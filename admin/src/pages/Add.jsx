@@ -32,10 +32,10 @@ const Add = ({ token }) => {
       formData.append("bestseller", bestseller);
       formData.append("sizes", JSON.stringify(sizes));
 
-      image4 && formData.append("image1", image1);
-      image1 && formData.append("image2", image2);
-      image2 && formData.append("image3", image3);
-      image3 && formData.append("image4", image4);
+      if (image1) formData.append("image1", image1);
+      if (image2) formData.append("image2", image2);
+      if (image3) formData.append("image3", image3);
+      if (image4) formData.append("image4", image4);
 
       const response = await axios.post(
         backendUrl + "/api/product/add",
@@ -43,21 +43,21 @@ const Add = ({ token }) => {
         { headers: { token } }
       );
 
-      if(response.data.success){
-        toast.success(response.data.message)
-        setName('')
-        setDescription('')
-        setImage1(false)
-        setImage2(false)
-        setImage3(false)
-        setImage4(false)
-        setPrice('')
-      } else{
-        toast.error(response.data.message)
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setName("");
+        setDescription("");
+        setImage1(false);
+        setImage2(false);
+        setImage3(false);
+        setImage4(false);
+        setPrice("");
+      } else {
+        toast.error(response.data.message);
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      console.log(error);
+      toast.error(error.message);
     }
   };
 
