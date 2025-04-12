@@ -153,6 +153,15 @@ const Collection = () => {
               />
               Winterwear
             </p>
+            <p className="flex gap-2">
+              <input
+                className="w-3"
+                type="checkbox"
+                value={"Footwear"}
+                onChange={toogleSubCategory}
+              />
+              Footwear
+            </p>
           </div>
         </div>
       </div>
