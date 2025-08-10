@@ -1,11 +1,16 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
-import mongoose from "mongoose";
 // COD
 const placeOrder = async (req, res) => {
   try {
-    const { userId, items, amount, address } = req.body;
+    // userId comes from auth middleware (req.userId)
+    const { items, amount, address } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.json({ success: false, message: "User not authorized" });
+    }
 
     const orderData = {
       userId,
@@ -16,8 +21,11 @@ const placeOrder = async (req, res) => {
       payment: false,
       date: Date.now(),
     };
+
     const newOrder = new orderModel(orderData);
     await newOrder.save();
+
+    // Clear cart after placing order
     await userModel.findByIdAndUpdate(userId, { cartData: {} });
 
     res.json({ success: true, message: "Order Placed" });
@@ -41,12 +49,11 @@ const allOrders = async (req, res) => {
 
 const userOrders = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    const orders = await orderModel.find({ userId });
+    const userId = req.userId; // comes from auth middleware
+    const orders = await orderModel.find({ userId }).sort({ date: -1 });
     res.json({ success: true, orders });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.json({ success: false, message: error.message });
   }
 };

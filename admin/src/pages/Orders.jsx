@@ -109,7 +109,7 @@ const Orders = ({ token }) => {
               </div>
               <p className="mt-3 mb-2 font-medium">
                 {" "}
-                {order.address.firstName + " " + order.address.lastName}{" "}
+                {order.address.Name}{" "}
               </p>
               <div>
                 <p> {order.address.street + ","} </p>

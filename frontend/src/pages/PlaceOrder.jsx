@@ -1,9 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
 import { assets } from "../assets/assets";
 import { ShopContext } from "../context/ShopContext";
-import { set } from "mongoose";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -20,8 +19,7 @@ const PlaceOrder = () => {
     products,
   } = useContext(ShopContext);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    Name: "",
     email: "",
     street: "",
     city: "",
@@ -88,6 +86,31 @@ const PlaceOrder = () => {
       toast.error(error.message);
     }
   };
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data } = await axios.get(`${backendUrl}/api/user/profile`, {
+          headers: { token },
+        });
+        if (data.success) {
+          setFormData((prev) => ({
+            ...prev,
+            Name: data.profile.name || "",
+            email: data.profile.email || "",
+            street: data.profile.street || "",
+            city: data.profile.city || "",
+            state: data.profile.state || "",
+            zipcode: data.profile.zipcode || "",
+            country: data.profile.country || "",
+            phone: data.profile.phone || "",
+          }));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchProfile();
+  }, [backendUrl, token]);
 
   return (
     <form
@@ -103,20 +126,11 @@ const PlaceOrder = () => {
           <input
             required
             onChange={onChangeHandler}
-            name="firstName"
-            value={formData.firstName}
+            name="Name"
+            value={formData.Name}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
             type="text"
-            placeholder="First name"
-          />
-          <input
-            required
-            onChange={onChangeHandler}
-            name="lastName"
-            value={formData.lastName}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
-            type="text"
-            placeholder="Last name"
+            placeholder="Full name"
           />
         </div>
         <input

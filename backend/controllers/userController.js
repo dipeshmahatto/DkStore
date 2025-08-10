@@ -93,32 +93,36 @@ const adminLogin = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-const getProfile = async (req, res) => {
+ const getProfile = async (req, res) => {
   try {
-    const user = await userModel.findById(req.user.id).select("-password");
-    // exclude password
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const user = await userModel.findById(req.userId).select("-password");
+    if (!user) return res.json({ success: false, message: "User not found" });
+
     res.json({ success: true, profile: user });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error(error);
+    res.json({ success: false, message: "Server error" });
   }
 };
-const updateProfile = async (req, res) => {
+
+ const updateProfile = async (req, res) => {
   try {
     const { phone, address } = req.body;
-    const updatedUser = await userModel
-      .findByIdAndUpdate(req.user.id, { phone, address }, { new: true })
-      .select("-password");
 
-    res.json({ success: true, profile: updatedUser });
+    const updatedUser = await userModel.findByIdAndUpdate(
+      req.userId, // ✅ changed here
+      { phone, address },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "Profile updated", profile: updatedUser });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error(error);
+    res.json({ success: false, message: "Server error" });
   }
 };
 
