@@ -15,7 +15,7 @@ const ShopContextProvider = (props) => {
   const [products, setProducts] = useState([]);
   const [token, setToken] = useState("");
   const navigate = useNavigate();
-  const addToCart = async (itemId, size) => {
+  const addToCart = async (itemId, size, quantity = 1) => {
     if (!size) {
       toast.error("Select Product Size");
       return;
@@ -29,7 +29,7 @@ const ShopContextProvider = (props) => {
     if (!cartData[itemId][size]) {
       cartData[itemId][size] = 0;
     }
-    cartData[itemId][size] += 1;
+    cartData[itemId][size] += quantity;
 
     setCartItems(cartData);
 
@@ -37,7 +37,7 @@ const ShopContextProvider = (props) => {
       try {
         await axios.post(
           `${backendUrl}/api/cart/add`,
-          { itemId, size },
+          { itemId, size, quantity },
           { headers: { token } }
         );
       } catch (error) {
@@ -118,7 +118,6 @@ const ShopContextProvider = (props) => {
       );
       if (response.data.success) {
         setCartItems(response.data.cartData);
-        
       }
     } catch (error) {
       console.log(error);
@@ -136,6 +135,7 @@ const ShopContextProvider = (props) => {
       getUserCart(localStorage.getItem("token"));
     }
   }, []);
+  
 
   const value = {
     products,

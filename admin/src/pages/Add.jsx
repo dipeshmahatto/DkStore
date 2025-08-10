@@ -13,9 +13,10 @@ const Add = ({ token }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState(""); // ✅ NEW
   const [category, setCategory] = useState("Men");
   const [subCategory, setSubCategory] = useState("Topwear");
-  const [bestseller, setBestseller] = useState("false");
+  const [bestseller, setBestseller] = useState(false);
   const [sizes, setSizes] = useState([]);
 
   const onSubmitHandler = async (e) => {
@@ -27,6 +28,7 @@ const Add = ({ token }) => {
       formData.append("name", name);
       formData.append("description", description);
       formData.append("price", price);
+      formData.append("quantity", quantity); // ✅ NEW
       formData.append("category", category);
       formData.append("subCategory", subCategory);
       formData.append("bestseller", bestseller);
@@ -52,6 +54,7 @@ const Add = ({ token }) => {
         setImage3(false);
         setImage4(false);
         setPrice("");
+        setQuantity(""); // ✅ reset
       } else {
         toast.error(response.data.message);
       }
@@ -66,63 +69,32 @@ const Add = ({ token }) => {
       onSubmit={onSubmitHandler}
       className="flex flex-col w-full items-start gap-3"
     >
+      {/* Upload Images */}
       <div>
         <p className="mb-2">Upload Image</p>
         <div className="flex gap-2">
-          <label htmlFor="image1">
-            <img
-              className="w-20"
-              src={!image1 ? assets.upload_area : URL.createObjectURL(image1)}
-              alt=""
-            />
-            <input
-              onChange={(e) => setImage1(e.target.files[0])}
-              type="file"
-              id="image1"
-              hidden
-            />
-          </label>
-          <label htmlFor="image2">
-            <img
-              className="w-20"
-              src={!image2 ? assets.upload_area : URL.createObjectURL(image2)}
-              alt=""
-            />
-            <input
-              onChange={(e) => setImage2(e.target.files[0])}
-              type="file"
-              id="image2"
-              hidden
-            />
-          </label>
-          <label htmlFor="image3">
-            <img
-              className="w-20"
-              src={!image3 ? assets.upload_area : URL.createObjectURL(image3)}
-              alt=""
-            />
-            <input
-              onChange={(e) => setImage3(e.target.files[0])}
-              type="file"
-              id="image3"
-              hidden
-            />
-          </label>
-          <label htmlFor="image4">
-            <img
-              className="w-20"
-              src={!image4 ? assets.upload_area : URL.createObjectURL(image4)}
-              alt=""
-            />
-            <input
-              onChange={(e) => setImage4(e.target.files[0])}
-              type="file"
-              id="image4"
-              hidden
-            />
-          </label>
+          {[setImage1, setImage2, setImage3, setImage4].map((setImage, i) => {
+            const imgState = [image1, image2, image3, image4][i];
+            return (
+              <label key={i} htmlFor={`image${i + 1}`}>
+                <img
+                  className="w-20"
+                  src={!imgState ? assets.upload_area : URL.createObjectURL(imgState)}
+                  alt=""
+                />
+                <input
+                  onChange={(e) => setImage(e.target.files[0])}
+                  type="file"
+                  id={`image${i + 1}`}
+                  hidden
+                />
+              </label>
+            );
+          })}
         </div>
       </div>
+
+      {/* Product Name */}
       <div className="w-full">
         <p className="mb-2">Product Name</p>
         <input
@@ -133,6 +105,8 @@ const Add = ({ token }) => {
           placeholder="Type here"
         />
       </div>
+
+      {/* Product Description */}
       <div className="w-full">
         <p className="mb-2">Product Description</p>
         <textarea
@@ -144,9 +118,10 @@ const Add = ({ token }) => {
         />
       </div>
 
+      {/* Category, Subcategory, Price, Quantity */}
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
         <div>
-          <p className="mb-2">Product category</p>
+          <p className="mb-2">Product Category</p>
           <select
             onChange={(e) => setCategory(e.target.value)}
             className="w-full px-3 py-2"
@@ -157,7 +132,7 @@ const Add = ({ token }) => {
           </select>
         </div>
         <div>
-          <p className="mb-2">Sub category</p>
+          <p className="mb-2">Sub Category</p>
           <select
             onChange={(e) => setSubCategory(e.target.value)}
             className="w-full px-3 py-2"
@@ -169,12 +144,7 @@ const Add = ({ token }) => {
           </select>
         </div>
         <div>
-          <p
-            className="mb2
-            "
-          >
-            Product Price
-          </p>
+          <p className="mb-2">Product Price</p>
           <input
             onChange={(e) => setPrice(e.target.value)}
             value={price}
@@ -183,97 +153,46 @@ const Add = ({ token }) => {
             placeholder="25"
           />
         </div>
+        <div>
+          <p className="mb-2">Quantity</p> {/* ✅ NEW */}
+          <input
+            onChange={(e) => setQuantity(e.target.value)}
+            value={quantity}
+            className="w-full px-3 py-2 sm:w-[120px]"
+            type="number"
+            placeholder="10"
+          />
+        </div>
       </div>
+
+      {/* Sizes */}
       <div>
         <p className="mb-2">Product Sizes</p>
         <div className="flex gap-3">
-          <div
-            onClick={() =>
-              setSizes((prev) =>
-                prev.includes("S")
-                  ? prev.filter((item) => item !== "S")
-                  : [...prev, "S"]
-              )
-            }
-          >
-            <p
-              className={`${
-                sizes.includes("S") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
+          {["S", "M", "L", "XL", "XXL"].map((size) => (
+            <div
+              key={size}
+              onClick={() =>
+                setSizes((prev) =>
+                  prev.includes(size)
+                    ? prev.filter((item) => item !== size)
+                    : [...prev, size]
+                )
+              }
             >
-              S
-            </p>
-          </div>
-          <div
-            onClick={() =>
-              setSizes((prev) =>
-                prev.includes("M")
-                  ? prev.filter((item) => item !== "M")
-                  : [...prev, "M"]
-              )
-            }
-          >
-            <p
-              className={`${
-                sizes.includes("M") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              M
-            </p>
-          </div>
-          <div
-            onClick={() =>
-              setSizes((prev) =>
-                prev.includes("L")
-                  ? prev.filter((item) => item !== "L")
-                  : [...prev, "L"]
-              )
-            }
-          >
-            <p
-              className={`${
-                sizes.includes("L") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              L
-            </p>
-          </div>
-          <div
-            onClick={() =>
-              setSizes((prev) =>
-                prev.includes("XL")
-                  ? prev.filter((item) => item !== "XL")
-                  : [...prev, "XL"]
-              )
-            }
-          >
-            <p
-              className={`${
-                sizes.includes("XL") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              Xl
-            </p>
-          </div>
-          <div
-            onClick={() =>
-              setSizes((prev) =>
-                prev.includes("XXL")
-                  ? prev.filter((item) => item !== "XXL")
-                  : [...prev, "XXL"]
-              )
-            }
-          >
-            <p
-              className={`${
-                sizes.includes("XXL") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              XXL
-            </p>
-          </div>
+              <p
+                className={`${
+                  sizes.includes(size) ? "bg-pink-100" : "bg-slate-200"
+                } px-3 py-1 cursor-pointer`}
+              >
+                {size}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* Bestseller Checkbox */}
       <div className="flex gap-2 mt-2">
         <input
           onChange={() => setBestseller((prev) => !prev)}
@@ -286,6 +205,7 @@ const Add = ({ token }) => {
         </label>
       </div>
 
+      {/* Submit Button */}
       <button type="submit" className="w-28 py-3 mt-4 bg-black text-white">
         Add
       </button>

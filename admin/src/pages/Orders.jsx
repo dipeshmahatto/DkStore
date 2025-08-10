@@ -30,18 +30,45 @@ const Orders = ({ token }) => {
   };
 
   const statusHandler = async (event, orderId) => {
+    const newStatus = event.target.value;
+
+    // ✅ 1. Optimistic update — change UI immediately
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order._id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+
+    // Show success right away
+    toast.success("Order status updated");
+
     try {
+      // ✅ 2. Send request to backend
       const response = await axios.post(
         backendUrl + "/api/order/status",
-        { orderId, status: event.target.value },
+        { orderId, status: newStatus },
         { headers: { token } }
       );
-      if (response.data.success) {
-        await fetchAllOrders();
+
+      // If backend fails, revert change
+      if (!response.data.success) {
+        // toast.error(response.data.message || "Failed to update status");
+
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === orderId ? { ...order, status: order.status } : order
+          )
+        );
       }
     } catch (error) {
-      console.log(error);
-      toast.error(response.data.message);
+      toast.error(error.message || "Something went wrong");
+
+      // Revert change on error
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order._id === orderId ? { ...order, status: order.status } : order
+        )
+      );
     }
   };
 

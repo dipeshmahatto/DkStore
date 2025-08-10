@@ -3,13 +3,16 @@ import { useParams } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import RelatedProducts from "../components/RelatedProducts";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, currency,addToCart } = useContext(ShopContext);
+  const { products, currency, addToCart } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
   const fetchProductData = async () => {
     products.map((item) => {
@@ -60,6 +63,21 @@ const Product = () => {
             {currency}
             {productData.price}
           </p>
+
+          {/* Quantity Available */}
+          <p className="mt-2 text-sm font-medium">
+            Quantity Available:{" "}
+            <span
+              className={
+                productData.quantity > 0 ? "text-green-600" : "text-red-600"
+              }
+            >
+              {productData.quantity > 0
+                ? `${productData.quantity} in stock`
+                : "Out of stock"}
+            </span>
+          </p>
+
           <p className="mt-5 text-gray-500 md:w-4/5">
             {productData.description}
           </p>
@@ -79,7 +97,38 @@ const Product = () => {
               ))}
             </div>
           </div>
-          <button onClick={()=>addToCart(productData._id,size)} className="bg-black text-white px-8 py-3 text-sm active:bg-gray-700">
+          {/* Quantity Selector */}
+          <div className="flex flex-col gap-2 my-4">
+            <p>Select Quantity</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setQuantity((prev) => (prev > 1 ? prev - 1 : 1))}
+                className="border px-3 py-1"
+              >
+                -
+              </button>
+              <span className="px-3">{quantity}</span>
+              <button
+                onClick={() =>
+                  setQuantity((prev) =>
+                    prev < productData.quantity ? prev + 1 : prev
+                  )
+                }
+                className="border px-3 py-1"
+              >
+                +
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              {productData.quantity} available in stock
+            </p>
+          </div>
+
+          <button
+            onClick={() => addToCart(productData._id, size, quantity)}
+            className="bg-black text-white px-8 py-3 text-sm active:bg-gray-700"
+            disabled={productData.quantity === 0}
+          >
             ADD TO CART
           </button>
           <hr className="mt-8 sm:w-4/5" />
@@ -114,9 +163,8 @@ const Product = () => {
         </div>
       </div>
       <RelatedProducts
-  currentProduct={productData} // the product currently being viewed
-/>
-
+        currentProduct={productData} // the product currently being viewed
+      />
     </div>
   ) : (
     <div className="opacity-0"></div>
