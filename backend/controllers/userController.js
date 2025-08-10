@@ -3,38 +3,31 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import userModel from "../models/userModel.js";
 
-
-
-const createToken = (id) =>{
-    return jwt.sign({id},process.env.JWT_SECRET)
-}
-
+const createToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET);
+};
 
 //Route for user login
 const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await userModel.findOne({ email });
 
-    try{
-        const {email,password} = req.body;
-        const user = await userModel.findOne({email})
-
-        if(!user){
-            return res.json({success:false, message:"User doesn`t exists"})
-        }
-        const isMatch = await bcrypt.compare(password, user.password)
-
-        if(isMatch){
-             const token = createToken(user._id)
-             res.json({success:true,token})
-        } else {
-            res.json({success:false,message:'Invalid credentials'})
-        }
-
-    } catch(error){
-        console.log(error);
-        res.json({success:false,message:error.message})
-        
+    if (!user) {
+      return res.json({ success: false, message: "User doesn`t exists" });
     }
+    const isMatch = await bcrypt.compare(password, user.password);
 
+    if (isMatch) {
+      const token = createToken(user._id);
+      res.json({ success: true, token });
+    } else {
+      res.json({ success: false, message: "Invalid credentials" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
 };
 
 //Route for user register
@@ -73,37 +66,41 @@ const registerUser = async (req, res) => {
     });
 
     const user = await newUser.save();
-    const token  = createToken(user._id)
-    res.json({success:true,token})
+    const token = createToken(user._id);
+    res.json({ success: true, token });
   } catch (error) {
     console.log(error);
-    res.json({success:false,message:error.message})
-    
+    res.json({ success: false, message: error.message });
   }
 };
 
 //Route for admin login
 const adminLogin = async (req, res) => {
   try {
-    const {email ,password} = req.body
+    const { email, password } = req.body;
 
-    if (email===process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-      const token = jwt.sign(email+password,process.env.JWT_SECRET)
-      res.json({success:true,token})
+    if (
+      email === process.env.ADMIN_EMAIL &&
+      password === process.env.ADMIN_PASSWORD
+    ) {
+      const token = jwt.sign(email + password, process.env.JWT_SECRET);
+      res.json({ success: true, token });
     } else {
-      res.json({success:false, message:"Invalid Credentials"})
+      res.json({ success: false, message: "Invalid Credentials" });
     }
   } catch (error) {
     console.log(error);
-    res.json({success:false, message:error.message})
-    
+    res.json({ success: false, message: error.message });
   }
 };
 const getProfile = async (req, res) => {
   try {
-    const user = await userModel.findById(req.body.userId).select("-password"); // exclude password
+    const user = await userModel.findById(req.user.id).select("-password");
+    // exclude password
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
     res.json({ success: true, profile: user });
   } catch (error) {
@@ -111,5 +108,18 @@ const getProfile = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+const updateProfile = async (req, res) => {
+  try {
+    const { phone, address } = req.body;
+    const updatedUser = await userModel
+      .findByIdAndUpdate(req.user.id, { phone, address }, { new: true })
+      .select("-password");
 
-export { loginUser, registerUser, adminLogin,getProfile };
+    res.json({ success: true, profile: updatedUser });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export { loginUser, registerUser, adminLogin, getProfile, updateProfile };
