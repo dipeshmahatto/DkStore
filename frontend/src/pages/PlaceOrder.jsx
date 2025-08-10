@@ -50,11 +50,7 @@ const PlaceOrder = () => {
             );
             if (itemInfo) {
               itemInfo.size = item;
-              if (itemInfo) {
-                itemInfo.size = item;
-                itemInfo.quantity = Number(cartItems[items][item]) || 0; // ✅ force a number
-                orderItems.push(itemInfo);
-              }
+              itemInfo.quantity = Number(cartItems[items][item]) || 0; // ✅ force a number
               orderItems.push(itemInfo);
             }
           }
@@ -76,19 +72,7 @@ const PlaceOrder = () => {
           );
 
           if (response.data.success) {
-            // ✅ Reduce inventory for each product in the order
-            for (const item of orderItems) {
-              await axios.post(
-                backendUrl + "/api/product/update-quantity",
-                {
-                  id: item._id,
-                  quantity: item.quantity, // quantity ordered
-                },
-                { headers: { token } }
-              );
-            }
-
-            toast.success("Order placed and inventory updated!");
+            toast.success("Order placed !");
             setCartItems({});
             navigate("/orders");
           } else {
