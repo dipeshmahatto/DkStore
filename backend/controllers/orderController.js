@@ -4,7 +4,6 @@ import productModel from "../models/productModel.js";
 // COD
 const placeOrder = async (req, res) => {
   try {
-    // userId comes from auth middleware (req.userId)
     const { items, amount, address } = req.body;
     const userId = req.userId;
 
@@ -25,7 +24,6 @@ const placeOrder = async (req, res) => {
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    // Clear cart after placing order
     await userModel.findByIdAndUpdate(userId, { cartData: {} });
 
     res.json({ success: true, message: "Order Placed" });
@@ -49,7 +47,7 @@ const allOrders = async (req, res) => {
 
 const userOrders = async (req, res) => {
   try {
-    const userId = req.userId; // comes from auth middleware
+    const userId = req.userId; 
     const orders = await orderModel.find({ userId }).sort({ date: -1 });
     res.json({ success: true, orders });
   } catch (error) {
@@ -70,7 +68,7 @@ const updateStatus = async (req, res) => {
     const prevStatus = String(order.status || "").toLowerCase();
     const newStatus = String(status).toLowerCase();
 
-    // Only deduct when going from NOT packing → packing
+    // Only deduct when going from order placed → packing
     if (newStatus === "packing" && prevStatus !== "packing") {
       for (const item of order.items) {
         const productId = item.productId || item._id || item.id;
@@ -87,7 +85,7 @@ const updateStatus = async (req, res) => {
       }
     }
 
-    // Now update the order status
+    //  update the order status
     order.status = status;
     await order.save();
 

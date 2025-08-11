@@ -13,7 +13,7 @@ const Add = ({ token }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [quantity, setQuantity] = useState(""); // ✅ NEW
+  const [quantity, setQuantity] = useState("");
   const [category, setCategory] = useState("Men");
   const [subCategory, setSubCategory] = useState("Topwear");
   const [bestseller, setBestseller] = useState(false);
@@ -28,7 +28,7 @@ const Add = ({ token }) => {
       formData.append("name", name);
       formData.append("description", description);
       formData.append("price", price);
-      formData.append("quantity", quantity); // ✅ NEW
+      formData.append("quantity", quantity); 
       formData.append("category", category);
       formData.append("subCategory", subCategory);
       formData.append("bestseller", bestseller);
@@ -54,7 +54,7 @@ const Add = ({ token }) => {
         setImage3(false);
         setImage4(false);
         setPrice("");
-        setQuantity(""); // ✅ reset
+        setQuantity(""); 
       } else {
         toast.error(response.data.message);
       }
@@ -154,7 +154,7 @@ const Add = ({ token }) => {
           />
         </div>
         <div>
-          <p className="mb-2">Quantity</p> {/* ✅ NEW */}
+          <p className="mb-2">Quantity</p> 
           <input
             onChange={(e) => setQuantity(e.target.value)}
             value={quantity}

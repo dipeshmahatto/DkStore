@@ -88,7 +88,6 @@ const singleProduct = async (req, res) => {
   }
 };
 
-// ✅ Update product quantity
 const updateProductQuantity = async (req, res) => {
   try {
     const { id, quantity } = req.body;

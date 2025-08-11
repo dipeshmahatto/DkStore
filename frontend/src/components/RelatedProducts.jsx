@@ -33,15 +33,15 @@ const RelatedProducts = ({ currentProduct }) => {
 
     // Filter products based on matching category/subcategory and tag similarity
     const matches = products
-      .filter((item) => item._id !== currentProduct._id) // Exclude current product
+      .filter((item) => item._id !== currentProduct._id) 
       .map((item) => {
         const tags = generateTags(item);
         const tagScore = getTagMatchScore(currentTags, tags);
         return { product: item, score: tagScore };
       })
-      .filter((entry) => entry.score > 0) // Only products with matches
-      .sort((a, b) => b.score - a.score) // Sort by relevance (higher score first)
-      .slice(0, 5) // Show top 5 related products
+      .filter((entry) => entry.score > 0) 
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5) 
       .map((entry) => entry.product);
 
     setRelated(matches);

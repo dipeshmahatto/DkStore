@@ -48,7 +48,7 @@ const PlaceOrder = () => {
             );
             if (itemInfo) {
               itemInfo.size = item;
-              itemInfo.quantity = Number(cartItems[items][item]) || 0; // ✅ force a number
+              itemInfo.quantity = Number(cartItems[items][item]) || 0; 
               orderItems.push(itemInfo);
             }
           }

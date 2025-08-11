@@ -32,7 +32,7 @@ const Orders = ({ token }) => {
   const statusHandler = async (event, orderId) => {
     const newStatus = event.target.value;
 
-    // ✅ 1. Optimistic update — change UI immediately
+    // update — change UI immediately
     setOrders((prevOrders) =>
       prevOrders.map((order) =>
         order._id === orderId ? { ...order, status: newStatus } : order
@@ -43,7 +43,7 @@ const Orders = ({ token }) => {
     toast.success("Order status updated");
 
     try {
-      // ✅ 2. Send request to backend
+      // Send request to backend
       const response = await axios.post(
         backendUrl + "/api/order/status",
         { orderId, status: newStatus },
