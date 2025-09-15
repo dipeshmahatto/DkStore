@@ -46,7 +46,7 @@ const RelatedProducts = ({ currentProduct }) => {
 
     setRelated(matches);
   }, [products, currentProduct]);
-
+// this return the related products 
   return (
     <div className="my-24">
       <div className="text-center text-3xl py-2">
