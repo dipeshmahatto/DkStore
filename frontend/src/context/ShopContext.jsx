@@ -126,6 +126,17 @@ const ShopContextProvider = (props) => {
   };
 
   useEffect(() => {
+  const savedToken = localStorage.getItem("token");
+
+  console.log("Saved Token:", savedToken);
+
+  if (!token && savedToken) {
+    setToken(savedToken);
+    getUserCart(savedToken);
+  }
+}, []);
+
+  useEffect(() => {
     getProductsData();
   }, []);
 
