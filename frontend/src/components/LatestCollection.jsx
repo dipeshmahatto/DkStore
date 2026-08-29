@@ -8,7 +8,10 @@ const LatestCollection = () => {
 
   useEffect(() => {
     if (products && products.length > 0) {
-      setLatestProducts(products.slice(0, 10));
+      // Sort by date descending so "latest" actually means the most
+      // recently added products, not just the first 10 in DB order.
+      const sorted = [...products].sort((a, b) => b.date - a.date);
+      setLatestProducts(sorted.slice(0, 10));
     }
   }, [products]);
 

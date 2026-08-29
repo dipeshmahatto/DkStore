@@ -3,6 +3,23 @@ import { backendUrl, curreny } from "../App";
 import { toast } from "react-toastify";
 import axios from "axios";
 
+// A star icon drawn inline (no extra asset file needed).
+// Filled + gold when the product is marked as a bestseller, outline + grey otherwise.
+const StarIcon = ({ filled }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className="w-5 h-5"
+    fill={filled ? "#f5a623" : "none"}
+    stroke={filled ? "#f5a623" : "#9ca3af"}
+    strokeWidth="1.5"
+  >
+    <path
+      d="M12 2l2.9 6.26 6.9.6-5.2 4.53 1.57 6.77L12 16.9l-6.17 3.26L7.4 13.4 2.2 8.86l6.9-.6L12 2z"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const List = ({ token }) => {
   const [list, setList] = useState([]);
 
@@ -62,6 +79,70 @@ const List = ({ token }) => {
     }
   };
 
+  const updatePrice = async (id, newPrice) => {
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/product/update-price",
+        { id, price: Number(newPrice) },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success("Price updated");
+        setList((prev) =>
+          prev.map((item) =>
+            item._id === id ? { ...item, price: newPrice } : item
+          )
+        );
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
+    }
+  };
+
+  const toggleBestseller = async (id, currentValue) => {
+    const newValue = !currentValue;
+
+    // Optimistic update
+    setList((prev) =>
+      prev.map((item) =>
+        item._id === id ? { ...item, bestseller: newValue } : item
+      )
+    );
+
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/product/update-bestseller",
+        { id, bestseller: newValue },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success(
+          newValue ? "Marked as bestseller" : "Removed from bestsellers"
+        );
+      } else {
+        toast.error(response.data.message);
+        // Revert on failure
+        setList((prev) =>
+          prev.map((item) =>
+            item._id === id ? { ...item, bestseller: currentValue } : item
+          )
+        );
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
+      // Revert on failure
+      setList((prev) =>
+        prev.map((item) =>
+          item._id === id ? { ...item, bestseller: currentValue } : item
+        )
+      );
+    }
+  };
+
   useEffect(() => {
     fetchList();
   }, []);
@@ -71,28 +152,45 @@ const List = ({ token }) => {
       <p className="mb-2">All Product List</p>
       <div className="flex flex-col gap-2">
         {/* Table Header */}
-        <div className="hidden md:grid grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr] items-center py-1 px-2 border bg-gray-100 text-sm">
+        <div className="hidden md:grid grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] items-center py-1 px-2 border bg-gray-100 text-sm">
           <b>Image</b>
           <b>Name</b>
           <b>Category</b>
           <b>Price</b>
           <b>Quantity</b>
+          <b className="text-center">Bestseller</b>
           <b className="text-center">Action</b>
         </div>
 
         {/* Table Rows */}
         {list.map((item, index) => (
           <div
-            className="grid grid-cols-[1fr_3fr_1fr] md:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr] sm:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr] items-center gap-2 py-1 px-2 border text-sm"
+            className="grid grid-cols-[1fr_3fr_1fr] md:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] sm:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] items-center gap-2 py-1 px-2 border text-sm"
             key={index}
           >
             <img className="w-12" src={item.image[0]} alt="" />
             <p>{item.name}</p>
             <p>{item.category}</p>
-            <p>
-              {curreny}
-              {item.price}
-            </p>
+            {/* Editable Price */}
+            <div className="flex items-center gap-1">
+              <span>{curreny}</span>
+              <input
+                type="number"
+                min="0"
+                value={item.price}
+                onChange={(e) =>
+                  setList((prev) =>
+                    prev.map((prod) =>
+                      prod._id === item._id
+                        ? { ...prod, price: e.target.value }
+                        : prod
+                    )
+                  )
+                }
+                onBlur={(e) => updatePrice(item._id, e.target.value)}
+                className="w-16 px-1 py-0.5 border text-center"
+              />
+            </div>
 
             {/* Editable Quantity */}
             <input
@@ -111,6 +209,20 @@ const List = ({ token }) => {
               onBlur={(e) => updateQuantity(item._id, e.target.value)}
               className="w-16 px-1 py-0.5 border text-center"
             />
+
+            {/* Editable Bestseller toggle */}
+            <button
+              type="button"
+              onClick={() => toggleBestseller(item._id, item.bestseller)}
+              className="flex justify-center items-center cursor-pointer"
+              title={
+                item.bestseller
+                  ? "Remove from bestsellers"
+                  : "Mark as bestseller"
+              }
+            >
+              <StarIcon filled={!!item.bestseller} />
+            </button>
 
             <p
               onClick={() => removeProduct(item._id)}

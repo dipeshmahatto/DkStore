@@ -108,10 +108,64 @@ const updateProductQuantity = async (req, res) => {
   }
 };
 
+// Toggle whether a product is marked as a bestseller
+const updateBestseller = async (req, res) => {
+  try {
+    const { id, bestseller } = req.body;
+
+    if (!id || bestseller === undefined) {
+      return res.json({
+        success: false,
+        message: "Missing product ID or bestseller value",
+      });
+    }
+
+    await productModel.findByIdAndUpdate(id, {
+      bestseller: Boolean(bestseller),
+    });
+
+    res.json({ success: true, message: "Bestseller status updated" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Update a product's price
+const updateProductPrice = async (req, res) => {
+  try {
+    const { id, price } = req.body;
+
+    if (!id || price === undefined) {
+      return res.json({
+        success: false,
+        message: "Missing product ID or price",
+      });
+    }
+
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.json({
+        success: false,
+        message: "Price must be a valid non-negative number",
+      });
+    }
+
+    await productModel.findByIdAndUpdate(id, { price: numericPrice });
+
+    res.json({ success: true, message: "Price updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   listProducts,
   addProduct,
   removeProduct,
   singleProduct,
   updateProductQuantity,
+  updateBestseller,
+  updateProductPrice,
 };

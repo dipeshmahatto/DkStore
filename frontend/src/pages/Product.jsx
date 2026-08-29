@@ -3,16 +3,23 @@ import { useParams } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import RelatedProducts from "../components/RelatedProducts";
+import Reviews from "../components/Reviews";
 import { toast } from "react-toastify";
+import axios from "axios";
 import "react-toastify/dist/ReactToastify.css";
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, currency, addToCart } = useContext(ShopContext);
+  const { products, currency, addToCart, backendUrl } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState("description");
+  const [ratingSummary, setRatingSummary] = useState({
+    averageRating: 0,
+    totalCount: 0,
+  });
 
   const fetchProductData = async () => {
     products.map((item) => {
@@ -26,6 +33,24 @@ const Product = () => {
   useEffect(() => {
     fetchProductData();
   }, [productId, products]);
+
+  useEffect(() => {
+    const fetchRatingSummary = async () => {
+      try {
+        const response = await axios.post(`${backendUrl}/api/review/list`, {
+          productId,
+        });
+        if (response.data.success) {
+          setRatingSummary(response.data.summary);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    if (productId) {
+      fetchRatingSummary();
+    }
+  }, [productId, activeTab]);
 
   return productData ? (
     <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
@@ -52,12 +77,24 @@ const Product = () => {
         <div className="flex-1">
           <h1 className="font-medium text-2xl mt-2">{productData.name}</h1>
           <div className="flex items-center gap-1 mt-2">
-            <img src={assets.star_icon} alt="" className="w-3.5" />
-            <img src={assets.star_icon} alt="" className="w-3.5" />
-            <img src={assets.star_icon} alt="" className="w-3.5" />
-            <img src={assets.star_icon} alt="" className="w-3.5" />
-            <img src={assets.star_dull_icon} alt="" className="w-3.5" />
-            <p className="pl-2">(122)</p>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <img
+                key={star}
+                src={
+                  star <= Math.round(ratingSummary.averageRating)
+                    ? assets.star_icon
+                    : assets.star_dull_icon
+                }
+                alt=""
+                className="w-3.5"
+              />
+            ))}
+            <p
+              className="pl-2 cursor-pointer hover:underline"
+              onClick={() => setActiveTab("reviews")}
+            >
+              ({ratingSummary.totalCount})
+            </p>
           </div>
           <p className="mt-5 text-3xl font-medium">
             {currency}
@@ -160,26 +197,48 @@ const Product = () => {
       </div>
       <div className="mt-20">
         <div className="flex">
-          <b className="border px-5 py-3 text-sm">Description</b>
-          <p className="border px-5 py-3 text-sm">Reviews</p>
-        </div>
-        <div className="flex flex-col gap-4 border px-6 py-6 texxt-sm text-gray-500">
-          <p>
-            An Ecommerce website is an onlinne platform that facilitates the
-            buying and selling of products or services over the internet. It
-            services as a vritual marketplace where business and individuals can
-            showcase their products interact with customers and conduct
-            transactions without the need for a physical presemce. E-commerce
-            websites have gained immense popularity due to their convenience
-            accessibility and the global reach they offer.
+          <b
+            onClick={() => setActiveTab("description")}
+            className={`border px-5 py-3 text-sm cursor-pointer ${
+              activeTab === "description" ? "" : "font-normal text-gray-500"
+            }`}
+          >
+            Description
+          </b>
+          <p
+            onClick={() => setActiveTab("reviews")}
+            className="border px-5 py-3 text-sm cursor-pointer"
+            style={
+              activeTab === "reviews"
+                ? { fontWeight: 500, color: "black" }
+                : {}
+            }
+          >
+            Reviews
           </p>
-          <p>
-            E-commerce website typically display product or services along with
-            detailed description, images, prices, and any available
-            variations(eg. Sizes colors ). Each product usually has its own
-            dedicated ppage with relavalent information
-          </p>
         </div>
+        {activeTab === "description" ? (
+          <div className="flex flex-col gap-4 border px-6 py-6 text-sm text-gray-500">
+            <p>
+              An Ecommerce website is an online platform that facilitates the
+              buying and selling of products or services over the internet.
+              It serves as a virtual marketplace where businesses and
+              individuals can showcase their products, interact with
+              customers, and conduct transactions without the need for a
+              physical presence. E-commerce websites have gained immense
+              popularity due to their convenience, accessibility, and the
+              global reach they offer.
+            </p>
+            <p>
+              E-commerce websites typically display products or services
+              along with detailed descriptions, images, prices, and any
+              available variations (e.g. sizes, colors). Each product
+              usually has its own dedicated page with relevant information.
+            </p>
+          </div>
+        ) : (
+          <Reviews productId={productData._id} />
+        )}
       </div>
       <RelatedProducts
         currentProduct={productData} // the product currently being viewed
