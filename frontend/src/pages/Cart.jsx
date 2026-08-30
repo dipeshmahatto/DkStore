@@ -84,7 +84,12 @@ const Cart = () => {
           <CartTotal />
           <div className="w-full text-end">
             <button
-              onClick={() => navigate("/place-order")}
+              onClick={() => {
+                // Clear any leftover Buy Now data so a stale single-item
+                // checkout doesn't resurface over the real cart checkout.
+                sessionStorage.removeItem("buyNowItem");
+                navigate("/place-order");
+              }}
               className="bg-black text-white text-sm my-8 px-8 py-3"
             >
               PROCEED TO CHECKOUT

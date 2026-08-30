@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
 import { assets } from "../assets/assets";
@@ -8,6 +9,21 @@ import { toast } from "react-toastify";
 
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
+  const location = useLocation();
+
+  // Prefer the item passed via router state (normal flow). If that's
+  // missing - e.g. the user refreshed this page - fall back to the copy
+  // saved in sessionStorage by the "Buy Now" button on the product page.
+  const [buyNowItem] = useState(() => {
+    if (location.state?.buyNowItem) return location.state.buyNowItem;
+    try {
+      const saved = sessionStorage.getItem("buyNowItem");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const {
     navigate,
     backendUrl,
@@ -40,25 +56,36 @@ const PlaceOrder = () => {
     event.preventDefault();
     try {
       let orderItems = [];
-      for (const items in cartItems) {
-        for (const item in cartItems[items]) {
-          if (cartItems[items][item] > 0) {
-            const itemInfo = structuredClone(
-              products.find((product) => product._id === items)
-            );
-            if (itemInfo) {
-              itemInfo.size = item;
-              itemInfo.quantity = Number(cartItems[items][item]) || 0; 
-              orderItems.push(itemInfo);
+      let orderAmount = 0;
+
+      if (buyNowItem) {
+        // Buy Now path - order only this one item, ignore the cart
+        const itemInfo = structuredClone(buyNowItem);
+        orderItems.push(itemInfo);
+        orderAmount = itemInfo.price * itemInfo.quantity + delivery_fee;
+      } else {
+        // Normal checkout path - order everything currently in the cart
+        for (const items in cartItems) {
+          for (const item in cartItems[items]) {
+            if (cartItems[items][item] > 0) {
+              const itemInfo = structuredClone(
+                products.find((product) => product._id === items)
+              );
+              if (itemInfo) {
+                itemInfo.size = item;
+                itemInfo.quantity = Number(cartItems[items][item]) || 0;
+                orderItems.push(itemInfo);
+              }
             }
           }
         }
+        orderAmount = getCartAmount() + delivery_fee;
       }
 
       let orderData = {
         address: formData,
         items: orderItems,
-        amount: getCartAmount() + delivery_fee,
+        amount: orderAmount,
       };
 
       switch (method) {
@@ -71,7 +98,14 @@ const PlaceOrder = () => {
 
           if (response.data.success) {
             toast.success("Order placed !");
-            setCartItems({});
+            // Only clear the cart if this order actually came from the cart
+            if (!buyNowItem) {
+              setCartItems({});
+            } else {
+              // Order placed via Buy Now - clean up the saved copy so it
+              // doesn't resurface on a later, unrelated checkout visit.
+              sessionStorage.removeItem("buyNowItem");
+            }
             navigate("/orders");
           } else {
             toast.error(response.data.message);
@@ -204,7 +238,26 @@ const PlaceOrder = () => {
       {/* Right Side */}
       <div className="mt-8">
         <div className="mt-8 min-w-80">
-          <CartTotal />
+          {buyNowItem && (
+            <div className="mb-4 flex items-center gap-3 border rounded p-3 text-sm">
+              <img
+                src={buyNowItem.image[0]}
+                alt=""
+                className="w-14 h-14 object-cover rounded"
+              />
+              <div>
+                <p className="font-medium">{buyNowItem.name}</p>
+                <p className="text-gray-500">
+                  Size: {buyNowItem.size} · Qty: {buyNowItem.quantity}
+                </p>
+              </div>
+            </div>
+          )}
+          <CartTotal
+            overrideSubtotal={
+              buyNowItem ? buyNowItem.price * buyNowItem.quantity : undefined
+            }
+          />
         </div>
         <div className="mt-12">
           <Title text1={"PAYMENT"} text2={"METHOD"} />

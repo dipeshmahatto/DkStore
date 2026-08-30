@@ -160,6 +160,48 @@ const updateProductPrice = async (req, res) => {
   }
 };
 
+// Update a product's sub-category
+const updateSubCategory = async (req, res) => {
+  try {
+    const { id, subCategory } = req.body;
+
+    if (!id || !subCategory) {
+      return res.json({
+        success: false,
+        message: "Missing product ID or sub-category",
+      });
+    }
+
+    await productModel.findByIdAndUpdate(id, { subCategory });
+
+    res.json({ success: true, message: "Sub-category updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Update a product's category
+const updateCategory = async (req, res) => {
+  try {
+    const { id, category } = req.body;
+
+    if (!id || !category) {
+      return res.json({
+        success: false,
+        message: "Missing product ID or category",
+      });
+    }
+
+    await productModel.findByIdAndUpdate(id, { category });
+
+    res.json({ success: true, message: "Category updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   listProducts,
   addProduct,
@@ -168,4 +210,6 @@ export {
   updateProductQuantity,
   updateBestseller,
   updateProductPrice,
+  updateSubCategory,
+  updateCategory,
 };

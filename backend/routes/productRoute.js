@@ -7,6 +7,8 @@ import {
   updateProductQuantity,
   updateBestseller,
   updateProductPrice,
+  updateSubCategory,
+  updateCategory,
 } from "../controllers/productController.js";
 import upload from "../middleware/multer.js";
 import adminAuth from "../middleware/adminAuth.js";
@@ -30,5 +32,7 @@ productRouter.get("/list", listProducts);
 productRouter.post("/update-quantity", updateProductQuantity);
 productRouter.post("/update-bestseller", updateBestseller);
 productRouter.post("/update-price", updateProductPrice);
+productRouter.post("/update-subcategory", updateSubCategory);
+productRouter.post("/update-category", updateCategory);
 
 export default productRouter;

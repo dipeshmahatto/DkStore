@@ -143,6 +143,52 @@ const List = ({ token }) => {
     }
   };
 
+  const updateSubCategory = async (id, newSubCategory) => {
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/product/update-subcategory",
+        { id, subCategory: newSubCategory },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success("Sub-category updated");
+        setList((prev) =>
+          prev.map((item) =>
+            item._id === id ? { ...item, subCategory: newSubCategory } : item
+          )
+        );
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
+    }
+  };
+
+  const updateCategory = async (id, newCategory) => {
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/product/update-category",
+        { id, category: newCategory },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success("Category updated");
+        setList((prev) =>
+          prev.map((item) =>
+            item._id === id ? { ...item, category: newCategory } : item
+          )
+        );
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchList();
   }, []);
@@ -152,10 +198,12 @@ const List = ({ token }) => {
       <p className="mb-2">All Product List</p>
       <div className="flex flex-col gap-2">
         {/* Table Header */}
-        <div className="hidden md:grid grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] items-center py-1 px-2 border bg-gray-100 text-sm">
+        <div className="hidden md:grid grid-cols-[0.4fr_1fr_3fr_1fr_1fr_1fr_1fr_1fr_1fr] items-center py-1 px-2 border bg-gray-100 text-sm">
+          <b className="text-center">S.No.</b>
           <b>Image</b>
           <b>Name</b>
           <b>Category</b>
+          <b>Sub Category</b>
           <b>Price</b>
           <b>Quantity</b>
           <b className="text-center">Bestseller</b>
@@ -165,12 +213,38 @@ const List = ({ token }) => {
         {/* Table Rows */}
         {list.map((item, index) => (
           <div
-            className="grid grid-cols-[1fr_3fr_1fr] md:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] sm:grid-cols-[1fr_3fr_1fr_1fr_1fr_1fr_1fr] items-center gap-2 py-1 px-2 border text-sm"
+            className="grid grid-cols-[0.4fr_1fr_3fr_1fr] md:grid-cols-[0.4fr_1fr_3fr_1fr_1fr_1fr_1fr_1fr_1fr] sm:grid-cols-[0.4fr_1fr_3fr_1fr_1fr_1fr_1fr_1fr_1fr] items-center gap-2 py-1 px-2 border text-sm"
             key={index}
           >
+            <p className="text-center">{index + 1}</p>
             <img className="w-12" src={item.image[0]} alt="" />
             <p>{item.name}</p>
-            <p>{item.category}</p>
+
+            {/* Editable Category */}
+            <select
+              value={item.category}
+              onChange={(e) => updateCategory(item._id, e.target.value)}
+              className="px-1 py-0.5 border text-sm"
+            >
+              <option value="Men">Men</option>
+              <option value="Women">Women</option>
+              <option value="Kids">Kids</option>
+            </select>
+
+            {/* Editable Sub Category */}
+            <select
+              value={item.subCategory}
+              onChange={(e) => updateSubCategory(item._id, e.target.value)}
+              className="px-1 py-0.5 border text-sm"
+            >
+              <option value="Topwear">Topwear</option>
+              <option value="Bottomwear">Bottomwear</option>
+              <option value="Winterwear">Winterwear</option>
+              <option value="Footwear">Footwear</option>
+              <option value="Eyewear">Eyewear</option>
+              <option value="Handbag">Handbag</option>
+            </select>
+
             {/* Editable Price */}
             <div className="flex items-center gap-1">
               <span>{curreny}</span>

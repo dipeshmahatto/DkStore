@@ -23,6 +23,7 @@ const pipelineIndex = (status) =>
 
 const Orders = ({ token }) => {
   const [orders, setOrders] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("all");
   const fetchAllOrders = async () => {
     if (!token) {
       return null;
@@ -89,11 +90,66 @@ const Orders = ({ token }) => {
     fetchAllOrders();
   }, [token]);
 
+  // Classify each order into one of 3 buckets for the filter tabs:
+  // - "completed": Delivered
+  // - "cancelled": Cancelled
+  // - "active": everything still moving through the pipeline
+  const classify = (order) => {
+    const status = order.status?.toLowerCase();
+    if (status === "delivered") return "completed";
+    if (status === CANCELLED.toLowerCase()) return "cancelled";
+    return "active";
+  };
+
+  const counts = orders.reduce(
+    (acc, order) => {
+      acc[classify(order)] += 1;
+      acc.all += 1;
+      return acc;
+    },
+    { all: 0, active: 0, completed: 0, cancelled: 0 }
+  );
+
+  const FILTERS = [
+    { key: "all", label: "All" },
+    { key: "active", label: "Active" },
+    { key: "completed", label: "Completed" },
+    { key: "cancelled", label: "Cancelled" },
+  ];
+
+  const filteredOrders =
+    activeFilter === "all"
+      ? orders
+      : orders.filter((order) => classify(order) === activeFilter);
+
   return (
     <div>
       <h3>Order Page</h3>
+
+      {/* Status filter tabs */}
+      <div className="flex flex-wrap gap-2 my-4">
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveFilter(key)}
+            className={`px-4 py-1.5 rounded-full border text-sm transition ${
+              activeFilter === key
+                ? "bg-black text-white border-black"
+                : "bg-white text-gray-600 border-gray-300 hover:border-gray-500"
+            }`}
+          >
+            {label} ({counts[key]})
+          </button>
+        ))}
+      </div>
+
       <div>
-        {orders.map((order, index) => {
+        {filteredOrders.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-10">
+            No {activeFilter !== "all" ? activeFilter : ""} orders found.
+          </p>
+        ) : (
+          filteredOrders.map((order, index) => {
           const isCancelled =
             order.status?.toLowerCase() === CANCELLED.toLowerCase();
           const isDelivered = order.status?.toLowerCase() === "delivered";
@@ -201,7 +257,8 @@ const Orders = ({ token }) => {
               )}
             </div>
           );
-        })}
+          })
+        )}
       </div>
     </div>
   );

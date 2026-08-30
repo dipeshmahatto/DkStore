@@ -10,7 +10,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, currency, addToCart, backendUrl } = useContext(ShopContext);
+  const { products, currency, addToCart, backendUrl, navigate } =
+    useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState("");
@@ -161,31 +162,77 @@ const Product = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              const stock = Number(productData.quantity) || 0;
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                const stock = Number(productData.quantity) || 0;
 
-              if (stock <= 0) {
-                toast.error("This product is out of stock");
-                return;
-              }
+                if (stock <= 0) {
+                  toast.error("This product is out of stock");
+                  return;
+                }
 
-              if (!size) {
-                toast.error("Please select a size before adding to cart");
-                return;
-              }
+                if (!size) {
+                  toast.error("Please select a size before adding to cart");
+                  return;
+                }
 
-              addToCart(productData._id, size, quantity);
-              toast.success("Product added to cart!");
-            }}
-            className={`px-8 py-3 text-sm rounded ${
-              productData.quantity <= 0
-                ? "bg-gray-400 text-gray-700"
-                : "bg-black text-white active:bg-gray-700"
-            }`}
-          >
-            {productData.quantity <= 0 ? "OUT OF STOCK" : "ADD TO CART"}
-          </button>
+                addToCart(productData._id, size, quantity);
+                toast.success("Product added to cart!");
+              }}
+              className={`px-8 py-3 text-sm rounded ${
+                productData.quantity <= 0
+                  ? "bg-gray-400 text-gray-700"
+                  : "bg-black text-white active:bg-gray-700"
+              }`}
+            >
+              {productData.quantity <= 0 ? "OUT OF STOCK" : "ADD TO CART"}
+            </button>
+
+            <button
+              onClick={() => {
+                const stock = Number(productData.quantity) || 0;
+
+                if (stock <= 0) {
+                  toast.error("This product is out of stock");
+                  return;
+                }
+
+                if (!size) {
+                  toast.error("Please select a size before buying");
+                  return;
+                }
+
+                // Skip the cart entirely - go straight to checkout with
+                // just this one item, leaving the existing cart untouched.
+                const buyNowData = {
+                  ...productData,
+                  size,
+                  quantity,
+                };
+
+                // Persist to sessionStorage too, so a page refresh on the
+                // checkout page doesn't lose this (router state alone
+                // does not survive a hard refresh).
+                sessionStorage.setItem(
+                  "buyNowItem",
+                  JSON.stringify(buyNowData)
+                );
+
+                navigate("/place-order", {
+                  state: { buyNowItem: buyNowData },
+                });
+              }}
+              disabled={productData.quantity <= 0}
+              className={`px-8 py-3 text-sm rounded border ${
+                productData.quantity <= 0
+                  ? "bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "bg-white text-black border-black hover:bg-black hover:text-white transition"
+              }`}
+            >
+              BUY NOW
+            </button>
+          </div>
 
           <hr className="mt-8 sm:w-4/5" />
           <div className="text-sm text-gray-500 mt-5 flex flex-col gap-1">

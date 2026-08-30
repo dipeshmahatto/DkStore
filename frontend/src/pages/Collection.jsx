@@ -144,7 +144,7 @@ const Collection = () => {
               />
               Bottomwear
             </p>
-            <p className="flex gap-2">
+            {/* <p className="flex gap-2">
               <input
                 className="w-3"
                 type="checkbox"
@@ -152,7 +152,7 @@ const Collection = () => {
                 onChange={toogleSubCategory}
               />
               Winterwear
-            </p>
+            </p> */}
             <p className="flex gap-2">
               <input
                 className="w-3"
@@ -161,6 +161,24 @@ const Collection = () => {
                 onChange={toogleSubCategory}
               />
               Footwear
+            </p>
+            <p className="flex gap-2">
+              <input
+                className="w-3"
+                type="checkbox"
+                value={"Eyewear"}
+                onChange={toogleSubCategory}
+              />
+              Eyewear
+            </p>
+            <p className="flex gap-2">
+              <input
+                className="w-3"
+                type="checkbox"
+                value={"Handbag"}
+                onChange={toogleSubCategory}
+              />
+              Handbag
             </p>
           </div>
         </div>
