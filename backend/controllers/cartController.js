@@ -2,10 +2,18 @@ import userModel from "../models/userModel.js";
 //add products to user cart
 const addToCart = async (req, res) => {
   try {
-    const { userId, itemId, size } = req.body;
+    const userId = req.userId;
+    const { itemId, size } = req.body;
 
-    const uesrData = await userModel.findById(userId);
-    let cartData = await uesrData.cartData;
+    const userData = await userModel.findById(userId);
+    if (!userData) {
+      return res.json({
+        success: false,
+        message: "User not found - please log in again",
+      });
+    }
+
+    let cartData = userData.cartData || {};
 
     if (cartData[itemId]) {
       if (cartData[itemId][size]) {
@@ -27,11 +35,19 @@ const addToCart = async (req, res) => {
 };
 const updateCart = async (req, res) => {
   try {
-    const { userId, itemId, size, quantity } = req.body;
+    const userId = req.userId;
+    const { itemId, size, quantity } = req.body;
 
-    const uesrData = await userModel.findById(userId);
-    let cartData = await uesrData.cartData;
+    const userData = await userModel.findById(userId);
+    if (!userData) {
+      return res.json({
+        success: false,
+        message: "User not found - please log in again",
+      });
+    }
 
+    let cartData = userData.cartData || {};
+    if (!cartData[itemId]) cartData[itemId] = {};
     cartData[itemId][size] = quantity;
 
     await userModel.findByIdAndUpdate(userId, { cartData });
@@ -43,11 +59,18 @@ const updateCart = async (req, res) => {
 };
 const getUserCart = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.userId;
 
-    const uesrData = await userModel.findById(userId);
-    let cartData = await uesrData.cartData;
-    
+    const userData = await userModel.findById(userId);
+    if (!userData) {
+      return res.json({
+        success: false,
+        message: "User not found - please log in again",
+      });
+    }
+
+    let cartData = userData.cartData || {};
+
     res.json({ success: true, cartData });
   } catch (error) {
     console.log(error);

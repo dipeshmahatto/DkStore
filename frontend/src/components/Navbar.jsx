@@ -1,9 +1,10 @@
 import React, { useContext, useState } from "react";
 import { assets } from "../assets/assets";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 const Navbar = () => {
   const [visible, setVisible] = useState(false);
+  const location = useLocation();
 
   const {
     setShowSearch,
@@ -47,7 +48,12 @@ const Navbar = () => {
       </ul>
       <div className="flex items-center gap-6">
         <img
-          onClick={() => setShowSearch(true)}
+          onClick={() => {
+            setShowSearch(true);
+            if (!location.pathname.includes("collection")) {
+              navigate("/collection");
+            }
+          }}
           src={assets.search_icon}
           className="w-5 cursor-pointer"
           alt=""
@@ -85,7 +91,7 @@ const Navbar = () => {
         />
       </div>
       <div
-        className={`absolute top-0 bottom-0 overflow-hidden bg-white transition-all ${
+        className={`fixed top-0 left-0 bottom-0 z-40 overflow-hidden bg-white transition-all ${
           visible ? "w-full" : "w-0"
         }`}
       >

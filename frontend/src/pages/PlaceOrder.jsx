@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const location = useLocation();
 
   // Prefer the item passed via router state (normal flow). If that's
@@ -89,7 +90,7 @@ const PlaceOrder = () => {
       };
 
       switch (method) {
-        case "cod":
+        case "cod": {
           const response = await axios.post(
             backendUrl + "/api/order/place",
             orderData,
@@ -98,12 +99,9 @@ const PlaceOrder = () => {
 
           if (response.data.success) {
             toast.success("Order placed !");
-            // Only clear the cart if this order actually came from the cart
             if (!buyNowItem) {
               setCartItems({});
             } else {
-              // Order placed via Buy Now - clean up the saved copy so it
-              // doesn't resurface on a later, unrelated checkout visit.
               sessionStorage.removeItem("buyNowItem");
             }
             navigate("/orders");
@@ -111,8 +109,46 @@ const PlaceOrder = () => {
             toast.error(response.data.message);
           }
           break;
+        }
+
+        case "khalti":
+        case "esewa": {
+          // Simulated payment flow for demo purposes - shows a brief
+          // "processing" state before confirming, so it feels like a real
+          // gateway round-trip even though no real gateway is called here.
+          setIsProcessingPayment(true);
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          const endpoint =
+            method === "khalti" ? "/api/order/khalti" : "/api/order/esewa";
+
+          try {
+            const response = await axios.post(
+              backendUrl + endpoint,
+              orderData,
+              { headers: { token } }
+            );
+
+            if (response.data.success) {
+              toast.success(response.data.message || "Payment successful!");
+              if (!buyNowItem) {
+                setCartItems({});
+              } else {
+                sessionStorage.removeItem("buyNowItem");
+              }
+              navigate("/orders");
+            } else {
+              toast.error(response.data.message);
+            }
+          } finally {
+            setIsProcessingPayment(false);
+          }
+          break;
+        }
 
         default:
+          toast.error("Please select a payment method");
           break;
       }
     } catch (error) {
@@ -302,10 +338,16 @@ const PlaceOrder = () => {
           <div className="w-full text-end mt-8">
             <button
               type="submit"
-              className="bg-black text-white px-16 py-3 text-sm"
+              disabled={isProcessingPayment}
+              className="bg-black text-white px-16 py-3 text-sm disabled:opacity-50"
             >
-              PLACE ORDER
+              {isProcessingPayment ? "PROCESSING PAYMENT..." : "PLACE ORDER"}
             </button>
+            {(method === "khalti" || method === "esewa") && (
+              <p className="text-[11px] text-gray-400 mt-2">
+                Demo mode: payment is simulated, no real gateway is contacted.
+              </p>
+            )}
           </div>
         </div>
       </div>

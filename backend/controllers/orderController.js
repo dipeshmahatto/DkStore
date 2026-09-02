@@ -51,8 +51,83 @@ const placeOrder = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-const placeOrderKhalti = async (req, res) => {};
-const placeOrderEsewa = async (req, res) => {};
+
+// SIMULATED payment - for demo/viva purposes only. No real gateway call is
+// made here. In a real integration, this is where you would redirect the
+// user to Khalti's checkout, then verify the payment signature/token Khalti
+// sends back before marking the order as paid - instead we mark it paid
+// immediately to demonstrate the full order flow end-to-end.
+const placeOrderKhalti = async (req, res) => {
+  try {
+    const { items, amount, address } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.json({ success: false, message: "User not authorized" });
+    }
+
+    const orderData = {
+      userId,
+      items,
+      address,
+      amount,
+      paymentMethod: "Khalti",
+      payment: true, // simulated - a real integration verifies this first
+      date: Date.now(),
+      statusHistory: [{ status: "Order Placed", date: Date.now() }],
+    };
+
+    const newOrder = new orderModel(orderData);
+    await newOrder.save();
+
+    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+    res.json({
+      success: true,
+      message: "Payment successful (simulated) - Order Placed",
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// SIMULATED payment - see note on placeOrderKhalti above. Same logic,
+// just labeled for eSewa as the selected payment method.
+const placeOrderEsewa = async (req, res) => {
+  try {
+    const { items, amount, address } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.json({ success: false, message: "User not authorized" });
+    }
+
+    const orderData = {
+      userId,
+      items,
+      address,
+      amount,
+      paymentMethod: "eSewa",
+      payment: true, // simulated - a real integration verifies this first
+      date: Date.now(),
+      statusHistory: [{ status: "Order Placed", date: Date.now() }],
+    };
+
+    const newOrder = new orderModel(orderData);
+    await newOrder.save();
+
+    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+    res.json({
+      success: true,
+      message: "Payment successful (simulated) - Order Placed",
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
 
 const allOrders = async (req, res) => {
   try {
@@ -66,11 +141,11 @@ const allOrders = async (req, res) => {
 
 const userOrders = async (req, res) => {
   try {
-    const userId = req.userId; 
-    const orders = await orderModel.find({ userId }).sort({ date: -1 });
+    const userId = req.userId;
+    const orders = await orderModel.find({ userId });
     res.json({ success: true, orders });
   } catch (error) {
-    console.error(error);
+    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -175,6 +250,13 @@ const updateStatus = async (req, res) => {
       order.statusHistory = [];
     }
     order.statusHistory.push({ status, date: Date.now() });
+
+    // Cash on Delivery orders are paid for at the moment of delivery -
+    // mark payment as complete automatically once the order is Delivered.
+    if (newLower === "delivered" && order.paymentMethod === "COD") {
+      order.payment = true;
+    }
+
     await order.save();
 
     res.json({ success: true, message: "Order status updated successfully" });
