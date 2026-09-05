@@ -1,27 +1,82 @@
 import express from "express";
+
 import {
   placeOrder,
-  placeOrderEsewa,
-  placeOrderKhalti,
+  initiateEsewaPayment,
+  verifyEsewaPayment,
+  initiateKhaltiPayment,
+  verifyKhaltiPayment,
   allOrders,
   userOrders,
   updateStatus,
 } from "../controllers/orderController.js";
+
+import {
+  getUserOrder,
+} from "../controllers/invoiceController.js";
+
 import adminAuth from "../middleware/adminAuth.js";
 import authUser from "../middleware/auth.js";
 
 const orderRouter = express.Router();
 
-//Admin features
-orderRouter.post("/list", adminAuth, allOrders);
-orderRouter.post("/status", adminAuth, updateStatus);
+// Admin routes
+orderRouter.post(
+  "/list",
+  adminAuth,
+  allOrders
+);
 
-// payment features
-orderRouter.post("/place", authUser, placeOrder);
-orderRouter.post("/esewa", authUser, placeOrderEsewa);
-orderRouter.post("/khalti", authUser, placeOrderKhalti);
+orderRouter.post(
+  "/status",
+  adminAuth,
+  updateStatus
+);
 
-//user featurs
-orderRouter.post("/userorders", authUser, userOrders);
+// Cash on delivery
+orderRouter.post(
+  "/place",
+  authUser,
+  placeOrder
+);
+
+// eSewa UAT routes
+orderRouter.post(
+  "/esewa/initiate",
+  authUser,
+  initiateEsewaPayment
+);
+
+orderRouter.post(
+  "/esewa/verify",
+  authUser,
+  verifyEsewaPayment
+);
+
+// Khalti sandbox routes
+orderRouter.post(
+  "/khalti/initiate",
+  authUser,
+  initiateKhaltiPayment
+);
+
+orderRouter.post(
+  "/khalti/verify",
+  authUser,
+  verifyKhaltiPayment
+);
+
+// User order routes
+orderRouter.post(
+  "/userorders",
+  authUser,
+  userOrders
+);
+
+orderRouter.get(
+  "/:orderId",
+  authUser,
+  getUserOrder
+);
 
 export default orderRouter;

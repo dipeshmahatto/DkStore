@@ -3,18 +3,31 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import axios from "axios";
-import { ShopContext } from "../context/ShopContext";
+
+import {
+  ShopContext,
+} from "../context/ShopContext";
+
 import Title from "../components/Title";
 import OrderTracker from "../components/OrderTracker";
 
 const Orders = () => {
-  const { backendUrl, token, currency } =
-    useContext(ShopContext);
+  const {
+    backendUrl,
+    token,
+    currency,
+    navigate,
+  } = useContext(ShopContext);
 
-  const [orderData, setOrderData] = useState([]);
-  const [expandedKey, setExpandedKey] =
-    useState(null);
+  const [orderData, setOrderData] =
+    useState([]);
+
+  const [
+    expandedKey,
+    setExpandedKey,
+  ] = useState(null);
 
   useEffect(() => {
     const loadOrderData = async () => {
@@ -25,32 +38,60 @@ const Orders = () => {
           `${backendUrl}/api/order/userorders`,
           {},
           {
-            headers: { token },
+            headers: {
+              token,
+            },
           }
         );
 
         if (response.data.success) {
           const items =
-            response.data.orders.flatMap((order) =>
-              order.items.map((item, itemIndex) => ({
-                ...item,
-                orderKey: `${order._id}-${itemIndex}`,
-                orderId: order._id,
-                status: order.status,
-                statusHistory:
-                  order.statusHistory || [],
-                payment: order.payment,
-                paymentMethod:
-                  order.paymentMethod,
-                paymentMode: order.paymentMode,
-                transactionId:
-                  order.transactionId,
-                paymentAccount:
-                  order.paymentAccount,
-                paidAt: order.paidAt,
-                orderAmount: order.amount,
-                date: order.date,
-              }))
+            response.data.orders.flatMap(
+              (order) =>
+                order.items.map(
+                  (item, itemIndex) => ({
+                    ...item,
+
+                    orderKey:
+                      `${order._id}-${itemIndex}`,
+
+                    orderId:
+                      order._id,
+
+                    status:
+                      order.status,
+
+                    statusHistory:
+                      order.statusHistory || [],
+
+                    payment:
+                      order.payment,
+
+                    paymentStatus:
+                      order.paymentStatus,
+
+                    paymentMethod:
+                      order.paymentMethod,
+
+                    paymentMode:
+                      order.paymentMode,
+
+                    transactionId:
+                      order.transactionId,
+
+                    paymentAccount:
+                      order.paymentAccount,
+
+                    paidAt:
+                      order.paidAt,
+
+                    orderAmount:
+                      order.amount,
+
+                    date:
+                      order.date,
+                  })
+                )
             );
 
           setOrderData(items);
@@ -61,12 +102,18 @@ const Orders = () => {
     };
 
     loadOrderData();
-  }, [backendUrl, token]);
+  }, [
+    backendUrl,
+    token,
+  ]);
 
   return (
     <div className="border-t pt-16 min-h-[70vh]">
       <div className="text-2xl mb-6">
-        <Title text1="MY" text2="ORDERS" />
+        <Title
+          text1="MY"
+          text2="ORDERS"
+        />
       </div>
 
       {!orderData.length && (
@@ -82,7 +129,25 @@ const Orders = () => {
             "cancelled";
 
           const expanded =
-            expandedKey === item.orderKey;
+            expandedKey ===
+            item.orderKey;
+
+          const isCod =
+            item.paymentMethod === "COD";
+
+          const canPrint =
+            !cancelled &&
+            (isCod || item.payment);
+
+          const paymentLabel =
+            item.payment
+              ? "Paid"
+              : isCod
+                ? "Pay on delivery"
+                : item.paymentStatus ===
+                    "FAILED"
+                  ? "Payment failed"
+                  : "Payment pending";
 
           return (
             <div
@@ -109,14 +174,18 @@ const Orders = () => {
                       </p>
 
                       <p>
-                        Quantity: {item.quantity}
+                        Quantity:{" "}
+                        {item.quantity}
                       </p>
 
-                      <p>Size: {item.size}</p>
+                      <p>
+                        Size: {item.size}
+                      </p>
                     </div>
 
                     <p className="mt-2 text-xs text-gray-500">
-                      Order ID: {item.orderId}
+                      Order ID:{" "}
+                      {item.orderId}
                     </p>
 
                     <p className="mt-1 text-xs text-gray-500">
@@ -134,13 +203,16 @@ const Orders = () => {
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {item.payment
-                          ? "Paid"
-                          : "Pay on delivery"}
+                        {paymentLabel}
                       </span>
 
                       <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                         {item.paymentMethod}
+
+                        {item.paymentMode ===
+                        "SANDBOX"
+                          ? " · Sandbox"
+                          : ""}
 
                         {item.paymentMode ===
                         "SIMULATED"
@@ -155,21 +227,27 @@ const Orders = () => {
                           <strong>
                             Transaction:
                           </strong>{" "}
-                          {item.transactionId}
+                          {
+                            item.transactionId
+                          }
                         </p>
 
-                        <p className="mt-1">
-                          <strong>
-                            Account:
-                          </strong>{" "}
-                          {item.paymentAccount}
-                        </p>
+                        {item.paymentAccount && (
+                          <p className="mt-1">
+                            <strong>
+                              Account:
+                            </strong>{" "}
+                            {
+                              item.paymentAccount
+                            }
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="lg:w-[42%] flex items-center justify-between gap-4">
+                <div className="lg:w-[48%] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <span
                       className={`w-2.5 h-2.5 rounded-full ${
@@ -190,21 +268,37 @@ const Orders = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedKey(
-                        expanded
-                          ? null
-                          : item.orderKey
-                      )
-                    }
-                    className="border px-4 py-2 text-sm font-medium rounded hover:bg-gray-50 transition"
-                  >
-                    {expanded
-                      ? "Hide Tracking"
-                      : "Track Order"}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {canPrint && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/invoice/${item.orderId}`
+                          )
+                        }
+                        className="border border-black bg-black text-white px-4 py-2 text-sm font-medium rounded"
+                      >
+                        Print Invoice
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedKey(
+                          expanded
+                            ? null
+                            : item.orderKey
+                        )
+                      }
+                      className="border px-4 py-2 text-sm font-medium rounded hover:bg-gray-50 transition"
+                    >
+                      {expanded
+                        ? "Hide Tracking"
+                        : "Track Order"}
+                    </button>
+                  </div>
                 </div>
               </div>
 

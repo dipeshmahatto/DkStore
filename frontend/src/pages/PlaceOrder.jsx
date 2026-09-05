@@ -9,13 +9,29 @@ import { ShopContext } from "../context/ShopContext";
 
 const emptyAddress = {
   Name: "",
-  email: "",
   street: "",
   city: "",
-  state: "",
-  zipcode: "",
-  country: "Nepal",
   phone: "",
+};
+
+const submitEsewaForm = (paymentUrl, formData) => {
+  const form = document.createElement("form");
+
+  form.method = "POST";
+  form.action = paymentUrl;
+
+  Object.entries(formData).forEach(([name, value]) => {
+    const input = document.createElement("input");
+
+    input.type = "hidden";
+    input.name = name;
+    input.value = String(value);
+
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
 };
 
 const PlaceOrder = () => {
@@ -32,6 +48,7 @@ const PlaceOrder = () => {
 
     try {
       const savedItem = sessionStorage.getItem("buyNowItem");
+
       return savedItem ? JSON.parse(savedItem) : null;
     } catch {
       return null;
@@ -42,16 +59,8 @@ const PlaceOrder = () => {
     location.state?.savedFormData || emptyAddress,
   );
 
-  const {
-    navigate,
-    backendUrl,
-    token,
-    cartItems,
-    setCartItems,
-    getCartAmount,
-    delivery_fee,
-    products,
-  } = useContext(ShopContext);
+  const { navigate, backendUrl, token, cartItems, setCartItems, products } =
+    useContext(ShopContext);
 
   const onChangeHandler = (event) => {
     const { name, value } = event.target;
@@ -64,14 +73,9 @@ const PlaceOrder = () => {
 
   const buildOrder = () => {
     const orderItems = [];
-    let displayAmount = 0;
 
     if (buyNowItem) {
-      const item = structuredClone(buyNowItem);
-
-      orderItems.push(item);
-
-      displayAmount = Number(item.price) * Number(item.quantity) + delivery_fee;
+      orderItems.push(structuredClone(buyNowItem));
     } else {
       Object.keys(cartItems).forEach((productId) => {
         Object.keys(cartItems[productId]).forEach((selectedSize) => {
@@ -90,17 +94,12 @@ const PlaceOrder = () => {
           });
         });
       });
-
-      displayAmount = getCartAmount() + delivery_fee;
     }
 
     return {
-      orderData: {
-        address: formData,
-        items: orderItems,
-        isBuyNow: Boolean(buyNowItem),
-      },
-      displayAmount,
+      address: formData,
+      items: orderItems,
+      isBuyNow: Boolean(buyNowItem),
     };
   };
 
@@ -109,39 +108,58 @@ const PlaceOrder = () => {
 
     if (!token) {
       toast.error("Please login before placing an order");
+
       navigate("/login");
       return;
     }
 
-    const { orderData, displayAmount } = buildOrder();
+    const orderData = buildOrder();
 
     if (!orderData.items.length) {
       toast.error("Your cart is empty");
       return;
     }
 
-    if (method === "khalti" || method === "esewa") {
-      const pendingPayment = {
-        method,
-        orderData,
-        displayAmount,
-        isBuyNow: Boolean(buyNowItem),
-      };
-
-      sessionStorage.setItem(
-        "pendingDummyPayment",
-        JSON.stringify(pendingPayment),
-      );
-
-      navigate("/dummy-payment", {
-        state: pendingPayment,
-      });
-
-      return;
-    }
-
     try {
       setIsSubmitting(true);
+
+      if (method === "esewa") {
+        const response = await axios.post(
+          `${backendUrl}/api/order/esewa/initiate`,
+          orderData,
+          {
+            headers: { token },
+          },
+        );
+
+        if (!response.data.success) {
+          toast.error(response.data.message);
+          return;
+        }
+
+        submitEsewaForm(response.data.paymentUrl, response.data.formData);
+
+        return;
+      }
+
+      if (method === "khalti") {
+        const response = await axios.post(
+          `${backendUrl}/api/order/khalti/initiate`,
+          orderData,
+          {
+            headers: { token },
+          },
+        );
+
+        if (!response.data.success) {
+          toast.error(response.data.message);
+          return;
+        }
+
+        window.location.assign(response.data.paymentUrl);
+
+        return;
+      }
 
       const response = await axios.post(
         `${backendUrl}/api/order/place`,
@@ -163,6 +181,7 @@ const PlaceOrder = () => {
       }
 
       toast.success("Order placed successfully");
+
       navigate("/orders");
     } catch (error) {
       console.log(error);
@@ -175,7 +194,9 @@ const PlaceOrder = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!token || location.state?.savedFormData) return;
+      if (!token || location.state?.savedFormData) {
+        return;
+      }
 
       try {
         const { data } = await axios.get(`${backendUrl}/api/user/profile`, {
@@ -186,7 +207,6 @@ const PlaceOrder = () => {
           setFormData((previous) => ({
             ...previous,
             Name: data.profile.name || "",
-            email: data.profile.email || "",
             phone: data.profile.phone || "",
           }));
         }
@@ -199,7 +219,7 @@ const PlaceOrder = () => {
   }, [backendUrl, token, location.state?.savedFormData]);
 
   const inputClass =
-    "border border-gray-300 rounded-md py-2.5 px-3.5 w-full outline-none focus:border-black transition";
+    "border border-gray-300 rounded-md py-3 px-4 w-full outline-none focus:border-black transition";
 
   return (
     <form
@@ -224,76 +244,6 @@ const PlaceOrder = () => {
 
         <input
           required
-          name="email"
-          value={formData.email}
-          onChange={onChangeHandler}
-          className={inputClass}
-          type="email"
-          placeholder="Email address"
-        />
-
-        <input
-          required
-          name="street"
-          value={formData.street}
-          onChange={onChangeHandler}
-          className={inputClass}
-          type="text"
-          placeholder="Street or area"
-          maxLength={100}
-        />
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            required
-            name="city"
-            value={formData.city}
-            onChange={onChangeHandler}
-            className={inputClass}
-            type="text"
-            placeholder="City"
-            maxLength={50}
-          />
-
-          <input
-            required
-            name="state"
-            value={formData.state}
-            onChange={onChangeHandler}
-            className={inputClass}
-            type="text"
-            placeholder="Province"
-            maxLength={50}
-          />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            required
-            name="zipcode"
-            value={formData.zipcode}
-            onChange={onChangeHandler}
-            className={inputClass}
-            type="text"
-            inputMode="numeric"
-            placeholder="Postal code"
-            maxLength={10}
-          />
-
-          <input
-            required
-            name="country"
-            value={formData.country}
-            onChange={onChangeHandler}
-            className={inputClass}
-            type="text"
-            placeholder="Country"
-            maxLength={50}
-          />
-        </div>
-
-        <input
-          required
           name="phone"
           value={formData.phone}
           onChange={onChangeHandler}
@@ -303,6 +253,27 @@ const PlaceOrder = () => {
           pattern="(97|98)[0-9]{8}"
           placeholder="Phone number (97/98XXXXXXXX)"
           maxLength={10}
+        />
+
+        <input
+          required
+          name="city"
+          value={formData.city}
+          onChange={onChangeHandler}
+          className={inputClass}
+          type="text"
+          placeholder="City / District"
+          maxLength={50}
+        />
+
+        <textarea
+          required
+          name="street"
+          value={formData.street}
+          onChange={onChangeHandler}
+          className={`${inputClass} min-h-28 resize-none`}
+          placeholder="Detailed delivery address"
+          maxLength={150}
         />
       </div>
 
@@ -404,12 +375,13 @@ const PlaceOrder = () => {
             </button>
           </div>
 
-          {(method === "khalti" || method === "esewa") && (
-            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              This is a college-project payment simulation. No real money or
-              real gateway is used.
+          {/* {(method === "khalti" || method === "esewa") && (
+            <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+              You will be redirected to the official{" "}
+              {method === "esewa" ? "eSewa UAT" : "Khalti sandbox"} checkout.
+              Only test money is used.
             </div>
-          )}
+          )} */}
 
           <div className="w-full text-right mt-8">
             <button
@@ -418,10 +390,10 @@ const PlaceOrder = () => {
               className="bg-black text-white px-10 sm:px-16 py-3 text-sm rounded disabled:opacity-50"
             >
               {isSubmitting
-                ? "PLACING ORDER..."
+                ? "CONNECTING..."
                 : method === "cod"
                   ? "PLACE ORDER"
-                  : `CONTINUE TO ${method.toUpperCase()}`}
+                  : `PAY WITH ${method.toUpperCase()}`}
             </button>
           </div>
         </div>
