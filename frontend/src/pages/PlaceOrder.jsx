@@ -1,29 +1,46 @@
-import React, { useContext, useState, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 import Title from "../components/Title";
 import CartTotal from "../components/CartTotal";
 import { assets } from "../assets/assets";
 import { ShopContext } from "../context/ShopContext";
-import axios from "axios";
-import { toast } from "react-toastify";
+
+const emptyAddress = {
+  Name: "",
+  email: "",
+  street: "",
+  city: "",
+  state: "",
+  zipcode: "",
+  country: "Nepal",
+  phone: "",
+};
 
 const PlaceOrder = () => {
-  const [method, setMethod] = useState("cod");
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const location = useLocation();
 
-  // Prefer the item passed via router state (normal flow). If that's
-  // missing - e.g. the user refreshed this page - fall back to the copy
-  // saved in sessionStorage by the "Buy Now" button on the product page.
+  const [method, setMethod] = useState(location.state?.savedMethod || "cod");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [buyNowItem] = useState(() => {
-    if (location.state?.buyNowItem) return location.state.buyNowItem;
+    if (location.state?.buyNowItem) {
+      return location.state.buyNowItem;
+    }
+
     try {
-      const saved = sessionStorage.getItem("buyNowItem");
-      return saved ? JSON.parse(saved) : null;
+      const savedItem = sessionStorage.getItem("buyNowItem");
+      return savedItem ? JSON.parse(savedItem) : null;
     } catch {
       return null;
     }
   });
+
+  const [formData, setFormData] = useState(
+    location.state?.savedFormData || emptyAddress,
+  );
 
   const {
     navigate,
@@ -35,319 +52,377 @@ const PlaceOrder = () => {
     delivery_fee,
     products,
   } = useContext(ShopContext);
-  const [formData, setFormData] = useState({
-    Name: "",
-    email: "",
-    street: "",
-    city: "",
-    state: "",
-    zipcode: "",
-    country: "",
-    phone: "",
-  });
 
   const onChangeHandler = (event) => {
-    const name = event.target.name;
-    const value = event.target.value;
+    const { name, value } = event.target;
 
-    setFormData((data) => ({ ...data, [name]: value }));
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const buildOrder = () => {
+    const orderItems = [];
+    let displayAmount = 0;
+
+    if (buyNowItem) {
+      const item = structuredClone(buyNowItem);
+
+      orderItems.push(item);
+
+      displayAmount = Number(item.price) * Number(item.quantity) + delivery_fee;
+    } else {
+      Object.keys(cartItems).forEach((productId) => {
+        Object.keys(cartItems[productId]).forEach((selectedSize) => {
+          const selectedQuantity = Number(cartItems[productId][selectedSize]);
+
+          if (selectedQuantity < 1) return;
+
+          const product = products.find((item) => item._id === productId);
+
+          if (!product) return;
+
+          orderItems.push({
+            ...structuredClone(product),
+            size: selectedSize,
+            quantity: selectedQuantity,
+          });
+        });
+      });
+
+      displayAmount = getCartAmount() + delivery_fee;
+    }
+
+    return {
+      orderData: {
+        address: formData,
+        items: orderItems,
+        isBuyNow: Boolean(buyNowItem),
+      },
+      displayAmount,
+    };
   };
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
-    try {
-      let orderItems = [];
-      let orderAmount = 0;
 
-      if (buyNowItem) {
-        // Buy Now path - order only this one item, ignore the cart
-        const itemInfo = structuredClone(buyNowItem);
-        orderItems.push(itemInfo);
-        orderAmount = itemInfo.price * itemInfo.quantity + delivery_fee;
-      } else {
-        // Normal checkout path - order everything currently in the cart
-        for (const items in cartItems) {
-          for (const item in cartItems[items]) {
-            if (cartItems[items][item] > 0) {
-              const itemInfo = structuredClone(
-                products.find((product) => product._id === items)
-              );
-              if (itemInfo) {
-                itemInfo.size = item;
-                itemInfo.quantity = Number(cartItems[items][item]) || 0;
-                orderItems.push(itemInfo);
-              }
-            }
-          }
-        }
-        orderAmount = getCartAmount() + delivery_fee;
-      }
+    if (!token) {
+      toast.error("Please login before placing an order");
+      navigate("/login");
+      return;
+    }
 
-      let orderData = {
-        address: formData,
-        items: orderItems,
-        amount: orderAmount,
+    const { orderData, displayAmount } = buildOrder();
+
+    if (!orderData.items.length) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    if (method === "khalti" || method === "esewa") {
+      const pendingPayment = {
+        method,
+        orderData,
+        displayAmount,
+        isBuyNow: Boolean(buyNowItem),
       };
 
-      switch (method) {
-        case "cod": {
-          const response = await axios.post(
-            backendUrl + "/api/order/place",
-            orderData,
-            { headers: { token } }
-          );
+      sessionStorage.setItem(
+        "pendingDummyPayment",
+        JSON.stringify(pendingPayment),
+      );
 
-          if (response.data.success) {
-            toast.success("Order placed !");
-            if (!buyNowItem) {
-              setCartItems({});
-            } else {
-              sessionStorage.removeItem("buyNowItem");
-            }
-            navigate("/orders");
-          } else {
-            toast.error(response.data.message);
-          }
-          break;
-        }
+      navigate("/dummy-payment", {
+        state: pendingPayment,
+      });
 
-        case "khalti":
-        case "esewa": {
-          // Simulated payment flow for demo purposes - shows a brief
-          // "processing" state before confirming, so it feels like a real
-          // gateway round-trip even though no real gateway is called here.
-          setIsProcessingPayment(true);
+      return;
+    }
 
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      setIsSubmitting(true);
 
-          const endpoint =
-            method === "khalti" ? "/api/order/khalti" : "/api/order/esewa";
+      const response = await axios.post(
+        `${backendUrl}/api/order/place`,
+        orderData,
+        {
+          headers: { token },
+        },
+      );
 
-          try {
-            const response = await axios.post(
-              backendUrl + endpoint,
-              orderData,
-              { headers: { token } }
-            );
-
-            if (response.data.success) {
-              toast.success(response.data.message || "Payment successful!");
-              if (!buyNowItem) {
-                setCartItems({});
-              } else {
-                sessionStorage.removeItem("buyNowItem");
-              }
-              navigate("/orders");
-            } else {
-              toast.error(response.data.message);
-            }
-          } finally {
-            setIsProcessingPayment(false);
-          }
-          break;
-        }
-
-        default:
-          toast.error("Please select a payment method");
-          break;
+      if (!response.data.success) {
+        toast.error(response.data.message);
+        return;
       }
+
+      if (buyNowItem) {
+        sessionStorage.removeItem("buyNowItem");
+      } else {
+        setCartItems({});
+      }
+
+      toast.success("Order placed successfully");
+      navigate("/orders");
     } catch (error) {
       console.log(error);
-      toast.error(error.message);
+
+      toast.error(error.response?.data?.message || error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!token || location.state?.savedFormData) return;
+
       try {
         const { data } = await axios.get(`${backendUrl}/api/user/profile`, {
           headers: { token },
         });
+
         if (data.success) {
-          setFormData((prev) => ({
-            ...prev,
+          setFormData((previous) => ({
+            ...previous,
             Name: data.profile.name || "",
             email: data.profile.email || "",
-            street: data.profile.street || "",
-            city: data.profile.city || "",
-            state: data.profile.state || "",
-            zipcode: data.profile.zipcode || "",
-            country: data.profile.country || "",
             phone: data.profile.phone || "",
           }));
         }
       } catch (error) {
-        console.error(error);
+        console.log(error);
       }
     };
+
     fetchProfile();
-  }, [backendUrl, token]);
+  }, [backendUrl, token, location.state?.savedFormData]);
+
+  const inputClass =
+    "border border-gray-300 rounded-md py-2.5 px-3.5 w-full outline-none focus:border-black transition";
 
   return (
     <form
       onSubmit={onSubmitHandler}
-      className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t "
+      className="flex flex-col lg:flex-row justify-between gap-10 pt-8 sm:pt-14 min-h-[80vh] border-t"
     >
-      {/* Left Side */}
-      <div className="flex flex-col gap-4 w-full sm:max-w-[480px] ">
-        <div className="text-xl sm:text-2xl my-3">
-          <Title text1={"DELIVERY"} text2={"INFORMATION"} />
+      <div className="flex flex-col gap-4 w-full lg:max-w-[500px]">
+        <div className="text-xl sm:text-2xl mb-2">
+          <Title text1="DELIVERY" text2="INFORMATION" />
         </div>
-        <div className="flex gap-3">
-          <input
-            required
-            onChange={onChangeHandler}
-            name="Name"
-            value={formData.Name}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
-            type="text"
-            placeholder="Full name"
-          />
-        </div>
+
         <input
           required
+          name="Name"
+          value={formData.Name}
           onChange={onChangeHandler}
+          className={inputClass}
+          type="text"
+          placeholder="Full name"
+          maxLength={70}
+        />
+
+        <input
+          required
           name="email"
           value={formData.email}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
+          onChange={onChangeHandler}
+          className={inputClass}
           type="email"
           placeholder="Email address"
         />
+
         <input
           required
-          onChange={onChangeHandler}
           name="street"
           value={formData.street}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
+          onChange={onChangeHandler}
+          className={inputClass}
           type="text"
-          placeholder="Street"
+          placeholder="Street or area"
+          maxLength={100}
         />
-        <div className="flex gap-3">
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             required
-            onChange={onChangeHandler}
             name="city"
             value={formData.city}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
+            onChange={onChangeHandler}
+            className={inputClass}
             type="text"
             placeholder="City"
+            maxLength={50}
           />
+
           <input
             required
-            onChange={onChangeHandler}
             name="state"
             value={formData.state}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
+            onChange={onChangeHandler}
+            className={inputClass}
             type="text"
-            placeholder="State"
+            placeholder="Province"
+            maxLength={50}
           />
         </div>
-        <div className="flex gap-3">
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             required
-            onChange={onChangeHandler}
             name="zipcode"
             value={formData.zipcode}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
-            type="number"
-            placeholder="Zipcode"
+            onChange={onChangeHandler}
+            className={inputClass}
+            type="text"
+            inputMode="numeric"
+            placeholder="Postal code"
+            maxLength={10}
           />
+
           <input
             required
-            onChange={onChangeHandler}
             name="country"
             value={formData.country}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
+            onChange={onChangeHandler}
+            className={inputClass}
             type="text"
             placeholder="Country"
+            maxLength={50}
           />
         </div>
+
         <input
           required
-          onChange={onChangeHandler}
           name="phone"
           value={formData.phone}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full "
-          type="number"
-          placeholder="Phone"
+          onChange={onChangeHandler}
+          className={inputClass}
+          type="tel"
+          inputMode="numeric"
+          pattern="(97|98)[0-9]{8}"
+          placeholder="Phone number (97/98XXXXXXXX)"
+          maxLength={10}
         />
       </div>
-      {/* Right Side */}
-      <div className="mt-8">
-        <div className="mt-8 min-w-80">
+
+      <div className="w-full lg:max-w-[520px]">
+        <div className="min-w-0">
           {buyNowItem && (
-            <div className="mb-4 flex items-center gap-3 border rounded p-3 text-sm">
+            <div className="mb-5 flex items-center gap-3 border rounded-md p-3 text-sm">
               <img
                 src={buyNowItem.image[0]}
-                alt=""
-                className="w-14 h-14 object-cover rounded"
+                alt={buyNowItem.name}
+                className="w-16 h-16 object-cover rounded"
               />
+
               <div>
                 <p className="font-medium">{buyNowItem.name}</p>
-                <p className="text-gray-500">
-                  Size: {buyNowItem.size} · Qty: {buyNowItem.quantity}
+
+                <p className="text-gray-500 mt-1">
+                  Size: {buyNowItem.size} · Quantity: {buyNowItem.quantity}
                 </p>
               </div>
             </div>
           )}
+
           <CartTotal
             overrideSubtotal={
-              buyNowItem ? buyNowItem.price * buyNowItem.quantity : undefined
+              buyNowItem
+                ? Number(buyNowItem.price) * Number(buyNowItem.quantity)
+                : undefined
             }
           />
         </div>
+
         <div className="mt-12">
-          <Title text1={"PAYMENT"} text2={"METHOD"} />
-          {/* Payment method selection */}
-          <div className=" flex gap-3 flex-col lg:flex-row ">
-            <div
-              onClick={() => setMethod("khalti")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "khalti" ? "bg-green-500" : ""
-                }`}
-              ></p>
-              <img className="h-8 mx-4" src={assets.khalti_logo} alt="" />
-            </div>
-            <div
-              onClick={() => setMethod("esewa")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "esewa" ? "bg-green-500" : ""
-                }`}
-              ></p>
-              <img className="h-8 mx-4 " src={assets.esewa_logo} alt="" />
-            </div>
-            <div
-              onClick={() => setMethod("cod")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "cod" ? "bg-green-500" : ""
-                }`}
-              ></p>
-              <p className=" text-gray-500 text-sm font-medium mx-4">
-                CASH ON DELIVERY
-              </p>
-            </div>
+          <div className="mb-5">
+            <Title text1="PAYMENT" text2="METHOD" />
           </div>
-          <div className="w-full text-end mt-8">
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => setMethod("khalti")}
+              className={`min-h-16 flex items-center justify-center gap-3 border rounded-md p-3 transition ${
+                method === "khalti"
+                  ? "border-purple-600 bg-purple-50 ring-1 ring-purple-600"
+                  : "border-gray-300 hover:border-gray-500"
+              }`}
+            >
+              <span
+                className={`w-3.5 h-3.5 border rounded-full ${
+                  method === "khalti" ? "bg-purple-600" : ""
+                }`}
+              ></span>
+
+              <img
+                className="h-7 max-w-20 object-contain"
+                src={assets.khalti_logo}
+                alt="Khalti"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMethod("esewa")}
+              className={`min-h-16 flex items-center justify-center gap-3 border rounded-md p-3 transition ${
+                method === "esewa"
+                  ? "border-green-600 bg-green-50 ring-1 ring-green-600"
+                  : "border-gray-300 hover:border-gray-500"
+              }`}
+            >
+              <span
+                className={`w-3.5 h-3.5 border rounded-full ${
+                  method === "esewa" ? "bg-green-600" : ""
+                }`}
+              ></span>
+
+              <img
+                className="h-7 max-w-20 object-contain"
+                src={assets.esewa_logo}
+                alt="eSewa"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMethod("cod")}
+              className={`min-h-16 flex items-center justify-center gap-2 border rounded-md p-3 transition ${
+                method === "cod"
+                  ? "border-black bg-gray-50 ring-1 ring-black"
+                  : "border-gray-300 hover:border-gray-500"
+              }`}
+            >
+              <span
+                className={`w-3.5 h-3.5 border rounded-full ${
+                  method === "cod" ? "bg-black" : ""
+                }`}
+              ></span>
+
+              <span className="text-xs font-medium">CASH ON DELIVERY</span>
+            </button>
+          </div>
+
+          {(method === "khalti" || method === "esewa") && (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              This is a college-project payment simulation. No real money or
+              real gateway is used.
+            </div>
+          )}
+
+          <div className="w-full text-right mt-8">
             <button
               type="submit"
-              disabled={isProcessingPayment}
-              className="bg-black text-white px-16 py-3 text-sm disabled:opacity-50"
+              disabled={isSubmitting}
+              className="bg-black text-white px-10 sm:px-16 py-3 text-sm rounded disabled:opacity-50"
             >
-              {isProcessingPayment ? "PROCESSING PAYMENT..." : "PLACE ORDER"}
+              {isSubmitting
+                ? "PLACING ORDER..."
+                : method === "cod"
+                  ? "PLACE ORDER"
+                  : `CONTINUE TO ${method.toUpperCase()}`}
             </button>
-            {(method === "khalti" || method === "esewa") && (
-              <p className="text-[11px] text-gray-400 mt-2">
-                Demo mode: payment is simulated, no real gateway is contacted.
-              </p>
-            )}
           </div>
         </div>
       </div>
